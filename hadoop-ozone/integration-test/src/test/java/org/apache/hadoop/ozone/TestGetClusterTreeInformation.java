@@ -57,8 +57,6 @@ public class TestGetClusterTreeInformation {
     conf = new OzoneConfiguration();
     cluster = MiniOzoneCluster.newBuilder(conf)
         .setNumDatanodes(numOfDatanodes)
-        .setNumOfOzoneManagers(3)
-        .setNumOfStorageContainerManagers(3)
         .build();
     cluster.waitForClusterToBeReady();
     scm = cluster.getStorageContainerManager();

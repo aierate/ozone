@@ -39,6 +39,7 @@ public final class ReconConstants {
   public static final String DEFAULT_OPEN_KEY_INCLUDE_NON_FSO = "false";
   public static final String DEFAULT_OPEN_KEY_INCLUDE_FSO = "false";
   public static final String DEFAULT_FETCH_COUNT = "1000";
+  public static final String DEFAULT_BUFFER_SIZE = "1000";
   public static final String DEFAULT_BATCH_NUMBER = "1";
   public static final String RECON_QUERY_BATCH_PARAM = "batchNum";
   public static final String RECON_QUERY_PREVKEY = "prevKey";
@@ -51,6 +52,7 @@ public final class ReconConstants {
   // Only include containers that are missing in OM by default
   public static final String DEFAULT_FILTER_FOR_MISSING_CONTAINERS = "SCM";
   public static final String RECON_QUERY_LIMIT = "limit";
+  public static final String RECON_BUFFER_SIZE = "buffer";
   public static final String RECON_QUERY_VOLUME = "volume";
   public static final String RECON_QUERY_BUCKET = "bucket";
   public static final String RECON_QUERY_FILE_SIZE = "fileSize";

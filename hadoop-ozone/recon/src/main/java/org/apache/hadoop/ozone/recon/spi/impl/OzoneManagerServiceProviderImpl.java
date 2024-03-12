@@ -368,7 +368,10 @@ public class OzoneManagerServiceProviderImpl
 
       // Currently, OM DB type is not configurable. Hence, defaulting to
       // RocksDB.
-      return new RocksDBCheckpoint(untarredDbDir);
+      String diectDbFile = "om.db";
+      Path diectDbDir = Paths.get(omSnapshotDBParentDir.getAbsolutePath(), diectDbFile);
+//      return new RocksDBCheckpoint(untarredDbDir);
+      return new RocksDBCheckpoint(diectDbDir);
     } catch (IOException e) {
       LOG.error("Unable to obtain Ozone Manager DB Snapshot. ", e);
     }

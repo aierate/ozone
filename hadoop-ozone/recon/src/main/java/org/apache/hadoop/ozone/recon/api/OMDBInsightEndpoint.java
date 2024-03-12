@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hdds.scm.server.OzoneStorageContainerManager;
 import org.apache.hadoop.hdds.utils.db.Table;
 import org.apache.hadoop.hdds.utils.db.TableIterator;
+import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
@@ -48,7 +49,12 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +65,9 @@ import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.OPEN_FILE_TABLE;
 import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.OPEN_KEY_TABLE;
 import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.DELETED_TABLE;
 import static org.apache.hadoop.ozone.om.OmMetadataManagerImpl.DELETED_DIR_TABLE;
+import static org.apache.hadoop.ozone.recon.ReconConstants.DEFAULT_BUFFER_SIZE;
 import static org.apache.hadoop.ozone.recon.ReconConstants.DEFAULT_FETCH_COUNT;
+import static org.apache.hadoop.ozone.recon.ReconConstants.RECON_BUFFER_SIZE;
 import static org.apache.hadoop.ozone.recon.ReconConstants.RECON_QUERY_LIMIT;
 import static org.apache.hadoop.ozone.recon.ReconConstants.RECON_QUERY_PREVKEY;
 import static org.apache.hadoop.ozone.recon.ReconConstants.DEFAULT_OPEN_KEY_INCLUDE_FSO;
@@ -223,8 +231,10 @@ public class OMDBInsightEndpoint {
             skipPrevKeyDone = true;
             continue;
           }
+          String key1 = omKeyInfo.getVolumeName() + "/" +
+              omKeyInfo.getBucketName() + "/" + omKeyInfo.getFileName();
           KeyEntityInfo keyEntityInfo = new KeyEntityInfo();
-          keyEntityInfo.setKey(key);
+          keyEntityInfo.setKey(key1);
           keyEntityInfo.setPath(omKeyInfo.getKeyName());
           keyEntityInfo.setInStateSince(omKeyInfo.getCreationTime());
           keyEntityInfo.setSize(omKeyInfo.getDataSize());
@@ -260,6 +270,56 @@ public class OMDBInsightEndpoint {
 
     openKeyInsightInfo.setLastKey(lastKey);
     return Response.ok(openKeyInsightInfo).build();
+  }
+
+
+  @GET
+  @Path("/fileTable")
+  public Response getFileTableInfo(
+      @DefaultValue(DEFAULT_BUFFER_SIZE) @QueryParam(RECON_BUFFER_SIZE)
+      int buffer
+  ) {
+    StreamingOutput stream = new StreamingOutput() {
+      @Override
+      public void write(OutputStream outputStream)
+          throws IOException, WebApplicationException {
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+        Table<String, OmKeyInfo> fileTable = omMetadataManager.getFileTable();
+        int batchSize = buffer;
+        int count = 0;
+        try (
+            TableIterator<String, ? extends Table.KeyValue<String, OmKeyInfo>>
+                keyIter = fileTable.iterator()) {
+          while (keyIter.hasNext()) {
+            Table.KeyValue<String, OmKeyInfo> kv = keyIter.next();
+            OmKeyInfo omKeyInfo = kv.getValue();
+            String key = omKeyInfo.getVolumeName() + "/" +
+                omKeyInfo.getBucketName() + "/" + omKeyInfo.getKeyName() + ","
+                + omKeyInfo.getKeyLocationVersions().toString();
+            writer.write(key);
+            writer.newLine();
+            count++;
+            if (count % batchSize == 0) {
+              writer.flush();
+            }
+          }
+        } catch (
+            IOException ex) {
+          throw new WebApplicationException(ex,
+              Response.Status.INTERNAL_SERVER_ERROR);
+        } catch (
+            IllegalArgumentException e) {
+          throw new WebApplicationException(e, Response.Status.BAD_REQUEST);
+        } catch (
+            Exception ex) {
+          throw new WebApplicationException(ex,
+              Response.Status.INTERNAL_SERVER_ERROR);
+        } finally {
+          writer.close();
+        }
+      }
+    };
+    return Response.ok(stream).build();
   }
 
   /**
